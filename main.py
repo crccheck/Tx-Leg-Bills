@@ -5,6 +5,7 @@ import couchdb
 
 def grab(url):
     f = urllib2.urlopen(url)
+    #print "Pulling %s Bytes from %s" % (f.headers.dict['content-length'], url)
     if f.geturl() != url:
         raise Exception("Bad URL, got %s but expected %s" % (f.geturl(), url))
     return etree.parse(f, etree.HTMLParser())
@@ -27,7 +28,6 @@ def get_bill(session, bill=None):
     bill['url'] = url
     bill['name'] = get_text_by_id(tree, "usrBillInfoTabs_lblBill")
     bill['session'] = get_text_by_id(tree, "usrBillInfoTabs_lblItem1Data")
-    bill['id'] = re.sub(r'[^-0-9a-zA-Z]', '', "%s-%s" % (bill['name'], bill['session']))
     bill['author'] = get_text_by_id(tree, "cellAuthors")
     bill['caption_text'] = get_text_by_id(tree, "cellCaptionText")
     bill['actions'] = [dict(
@@ -35,7 +35,8 @@ def get_bill(session, bill=None):
                     zip(['stage', 'description', 'comment', 'date', 'time', 'journal'],
                     [td.strip() for td in tr.xpath('./td/text()')]
                     ) if j]) for tr in tree.xpath('//table[@rules="rows"]//tr[@id]')]
-    return bill
+    id = re.sub(r'[^-0-9a-zA-Z]', '', "%s-%s" % (bill['session'], bill['name']))
+    return bill, id
     return bill, tree
 
 def get_house_bills_list(session):
@@ -43,9 +44,38 @@ def get_house_bills_list(session):
     return tree.xpath("//table//a/@href")
 
 def get_senate_bills_list(session):
-    gree = grab('http://www.capitol.state.tx.us/Reports/Report.aspx?LegSess=%s&ID=senatefiled' % session)
+    tree = grab('http://www.capitol.state.tx.us/Reports/Report.aspx?LegSess=%s&ID=senatefiled' % session)
     return tree.xpath("//table//a/@href")
 
+def get_today_bills_list():
+    tree = grab('http://www.capitol.state.tx.us/Reports/Report.aspx?&ID=todayfiled')
+    return tree.xpath("//table//a/@href")
+
+def get_current_session_bills():
+    db = couch_start()
+    session = get_current_session()
+    bill_list = get_house_bills_list(session)
+    bill_list.extend(get_senate_bills_list(session))
+    n = len(bill_list)
+    if n:
+        for i, url in enumerate(bill_list, start=1):
+            bill, id = get_bill(url)
+            print "%d / %d Saving %s" % (i, n, id)
+            db[id] = bill
+    else:
+        print "No Bills To Pull"
+
+def get_today_bills():
+    db = couch_start()
+    bill_list = get_today_bills_list()
+    n = len(bill_list)
+    if n:
+        for i, url in enumerate(bill_list, start=1):
+            bill, id = get_bill(url)
+            print "%d / %d Saving %s" % (i, n, id)
+            db[id] = bill
+    else:
+        print "No Bills To Pull"
 
 DATABASE = {
     'name': 'bills',
@@ -61,3 +91,5 @@ def couch_start():
         db = server[DATABASE['name']]
     return db
 
+if __name__ == "__main__":
+    pass
