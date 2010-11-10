@@ -3,7 +3,14 @@ import urllib2
 from lxml import etree
 import couchdb
 
+DATABASE = {
+    'name': 'bills',
+    'host': 'localhost',
+    'port': '5984'
+}
+
 def grab(url):
+    '''shortcut to pull a url as a element tree object ready for transversal'''
     f = urllib2.urlopen(url)
     #print "Pulling %s Bytes from %s" % (f.headers.dict['content-length'], url)
     if f.geturl() != url:
@@ -11,17 +18,21 @@ def grab(url):
     return etree.parse(f, etree.HTMLParser())
 
 def get_text_by_id(tree,id):
-    ''' TODO figure out how to make this a method so we can use self instead of tree '''
+    '''shortcut that works similar to javascript's getElementById(id).innerHTML
+    TODO figure out how to make this a method so we can use self instead of tree '''
     return tree.xpath('//*[@id="%s"]/text()' % id)[0]
 
 def get_all_sessions():
+    '''Figure out the names of the legislative sessions'''
     tree = grab('http://www.capitol.state.tx.us/Home.aspx')
     return tree.xpath("//*[@id='cboLegSess']/option/@value")
 
 def get_current_session():
+    '''Figure out what the current legislative session is'''
     return get_all_sessions()[0]
 
 def get_bill(session, bill=None):
+    '''return a dict that represents a bill and the id for the bill'''
     url = session if bill is None else 'http://www.capitol.state.tx.us/BillLookup/History.aspx?LegSess=%s&Bill=%s' % (session, bill)
     tree = grab(url)
     bill = {}
@@ -37,7 +48,6 @@ def get_bill(session, bill=None):
                     ) if j]) for tr in tree.xpath('//table[@rules="rows"]//tr[@id]')]
     id = re.sub(r'[^-0-9a-zA-Z]', '', "%s-%s" % (bill['session'], bill['name']))
     return bill, id
-    return bill, tree
 
 def get_house_bills_list(session):
     tree = grab('http://www.capitol.state.tx.us/Reports/Report.aspx?LegSess=%s&ID=housefiled' % session)
@@ -76,12 +86,6 @@ def get_today_bills():
             db[id] = bill
     else:
         print "No Bills To Pull"
-
-DATABASE = {
-    'name': 'bills',
-    'host': 'localhost',
-    'port': '5984'
-}
 
 def couch_start():
     server = couchdb.client.Server()
