@@ -41,13 +41,15 @@ def get_bill(session, bill=None):
     bill['session'] = get_text_by_id(tree, "usrBillInfoTabs_lblItem1Data")
     bill['author'] = get_text_by_id(tree, "cellAuthors")
     bill['caption_text'] = get_text_by_id(tree, "cellCaptionText")
-    bill['actions'] = [dict(
+    bill['subject'] = [dict(zip(['subject_name', 'subject_id'],re.match(r'(.*) \((.*)\)',t).groups()))
+                        for t in tree.xpath('//*[@id="cellSubjects"]')[0].itertext()]
+    bill['action'] = [dict(
                     [(i, j) for (i,j) in
                     zip(['stage', 'description', 'comment', 'date', 'time', 'journal'],
                     [td.strip() for td in tr.xpath('./td/text()')]
                     ) if j]) for tr in tree.xpath('//table[@rules="rows"]//tr[@id]')]
     id = re.sub(r'[^-0-9a-zA-Z]', '', "%s-%s" % (bill['session'], bill['name']))
-    return bill, id
+    return bill, id, tree
 
 def get_house_bills_list(session):
     tree = grab('http://www.capitol.state.tx.us/Reports/Report.aspx?LegSess=%s&ID=housefiled' % session)
@@ -69,7 +71,7 @@ def get_current_session_bills():
     n = len(bill_list)
     if n:
         for i, url in enumerate(bill_list, start=1):
-            bill, id = get_bill(url)
+            bill, id, _ = get_bill(url)
             print "%d / %d Saving %s" % (i, n, id)
             db[id] = bill
     else:
@@ -81,7 +83,7 @@ def get_today_bills():
     n = len(bill_list)
     if n:
         for i, url in enumerate(bill_list, start=1):
-            bill, id = get_bill(url)
+            bill, id, _ = get_bill(url)
             print "%d / %d Saving %s" % (i, n, id)
             db[id] = bill
     else:
