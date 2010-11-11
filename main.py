@@ -72,8 +72,14 @@ def get_current_session_bills():
     if n:
         for i, url in enumerate(bill_list, start=1):
             bill, id, _ = get_bill(url)
-            print "%d / %d Saving %s" % (i, n, id)
-            db[id] = bill
+            doc = db.get(id)
+            if doc:
+                print "%d / %d Update %s" % (i, n, id)
+                doc.update(bill)
+                db[doc.id] = doc
+            else:
+                print "%d / %d Save %s" % (i, n, id)
+                db[id] = bill
     else:
         print "No Bills To Pull"
 
@@ -84,8 +90,14 @@ def get_today_bills():
     if n:
         for i, url in enumerate(bill_list, start=1):
             bill, id, _ = get_bill(url)
-            print "%d / %d Saving %s" % (i, n, id)
-            db[id] = bill
+            doc = db.get(id)
+            if doc:
+                print "%d / %d Update %s" % (i, n, id)
+                doc.update(bill)
+                db[doc.id] = doc
+            else:
+                print "%d / %d Save %s" % (i, n, id)
+                db[id] = bill
     else:
         print "No Bills To Pull"
 
