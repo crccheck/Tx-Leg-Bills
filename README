@@ -1,3 +1,7 @@
+Httpd setup
+to prevent same origin policy nonsense, you'll have to set up a reverse proxy
+or some similar trick
+
 
 How to get a list of bills:
 

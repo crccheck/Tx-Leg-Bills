@@ -13,59 +13,111 @@
   menu, nav, section { display: block; }
 body {
   margin: 0;
+  font-family: helvetica, arial, sans-serif;
+  font-size: 10px;
 }
-
+h1 {
+    font-size: 2em;
+    margin: 0;
+}
+#list {
+    overflow: auto;
+    height: 200px;
+}
+a {
+    text-decoration: none;
+    color: inherit;
+}
+a:hover{
+    text-decoration: underline;
+}
 </style>
 </head>
 <body>
-<script src="data.js"></script>
+<h1>Bill Viz = Billz</h1>
+<ol id="list"></ol>
 <script type="text/javascript+protovis">
-// transform bubbleData
-data = bubbleData.rows.map(function(elem){ out = {}; out[elem.key] = elem.value; return out; });
+window.log=function(){log.history=log.history||[];log.history.push(arguments);if(this.console){console.log(Array.prototype.slice.call(arguments))}};
 
-subjects = {};
-subjectData.rows.forEach(function(elem){ subjects[elem.key] = elem.value; });
+var subjects = {},
+    bills = {},
+    data, vis;
 
+function load_data(){
+    $.getJSON("/couch/bills/_design/viz/_view/subject?group_level=1",
+        function(jsonData){
+            log('Grabbed Bill Subject Stats');
+            data = jsonData.rows.map(function(elem){ out = {}; out[elem.key] = elem.value; return out; });
+            main();
+        });
+}
+function load_subjects(){
+    $.getJSON("/couch/bills/_design/all/_view/subjects?group=true",
+        function(data){
+            log('Grabbed Bill Subject Lookup Table');
+            data.rows.forEach(function(elem){ subjects[elem.key] = elem.value; });
+            load_data();
+        });
+}
+function display_subject_captions(text){
+    var parent = $('#list');
+    parent.children().remove();
+    text.forEach(function(bill){
+        $('<li><a href="'+bill.url+'" target="_bill">'+bill.caption+'</a></li>').appendTo(parent);
+    });
+}
+function load_subject_captions(key){
+    if (bills[key]) display_subject_captions(bills[key]);
+    $.getJSON("/couch/bills/_design/viz/_view/subject-captions",
+        {key: '"' + key + '"'},
+        function(data){
+            bills[key] = data.rows.map(function(elem){ return elem.value; });
+            display_subject_captions(bills[key]);
+        });
+}
+function main(){
+    /* Produce a flat hierarchy of the Flare classes. */
+    var classes = pv.nodes(pv.flatten(data).leaf(Number).array());
+    classes.slice(1).forEach(function(d, idx) {
+      //console.log(d.nodeValue);
+      //d.nodeName = "flare." + d.nodeValue.keys.join(".");
+      d.nodeName = subjects[d.nodeValue.keys[1]];
+      //var i = d.nodeName.lastIndexOf(".");
+      //d.className = d.nodeName.substring(i + 1);
+      //d.packageName = d.nodeName.substring(0, i);
+      //d.nodeValue = d.nodeValue.value;
+      d.subjectId = d.nodeValue.keys[1];
+      d.fillStyleClass = d.nodeName.split(/\W/)[0];
+      d.nodeValue = d.nodeValue.value;
+    });
 
-/* Produce a flat hierarchy of the Flare classes. */
-var classes = pv.nodes(pv.flatten(data).leaf(Number).array());
-classes.slice(1).forEach(function(d, idx) {
-  //console.log(d.nodeValue);
-  //d.nodeName = "flare." + d.nodeValue.keys.join(".");
-  d.nodeName = subjects[d.nodeValue.keys[1]];
-  //var i = d.nodeName.lastIndexOf(".");
-  //d.className = d.nodeName.substring(i + 1);
-  //d.packageName = d.nodeName.substring(0, i);
-  //d.nodeValue = d.nodeValue.value;
-  d.fillStyleClass = d.nodeName.split(/\W/)[0];
-  d.nodeValue = d.nodeValue.value;
-});
+    /* For pretty number formatting. */
+    var format = pv.Format.number();
 
-/* For pretty number formatting. */
-var format = pv.Format.number();
+    vis = new pv.Panel()
+        .width(1000)
+        .height(1000);
 
-var vis = new pv.Panel()
-    .width(1000)
-    .height(1000);
+    vis.add(pv.Layout.Pack)
+        .top(-50)
+        .bottom(-50)
+        .nodes(classes)
+        .size(function(d) d.nodeValue)
+        .spacing(0)
+        .order(null)
+        .node.add(pv.Dot)
+        .fillStyle(pv.Colors.category20().by(function(d) d.fillStyleClass))
+        .strokeStyle(function() this.fillStyle().darker())
+        .visible(function(d) d.parentNode)
+        .title(function(d) d.nodeName + ": " + format(d.nodeValue))
+        .event("click", function(d) { $('h1').text(d.nodeName); load_subject_captions(d.subjectId); })
+        .anchor("center").add(pv.Label)
+        .text(function(d) d.nodeName.substring(0, 1 + (d.nodeValue >> 1)));
+        //.text(function(d) d.className.substring(0, Math.sqrt(d.nodeValue) >> 4));
 
-vis.add(pv.Layout.Pack)
-    .top(-50)
-    .bottom(-50)
-    .nodes(classes)
-    .size(function(d) d.nodeValue)
-    .spacing(0)
-    .order(null)
-  .node.add(pv.Dot)
-    .fillStyle(pv.Colors.category20().by(function(d) d.fillStyleClass))
-    .strokeStyle(function() this.fillStyle().darker())
-    .visible(function(d) d.parentNode)
-    .title(function(d) d.nodeName + ": " + format(d.nodeValue))
-  .anchor("center").add(pv.Label)
-    .text(function(d) d.nodeName.substring(0, 1 + (d.nodeValue >> 1)));
-    //.text(function(d) d.className.substring(0, Math.sqrt(d.nodeValue) >> 4));
-
-vis.render();
-
+    vis.render();
+}
+load_subjects();
 
 </script>
 </body>
