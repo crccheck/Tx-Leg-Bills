@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+<script src="protovis/protovis-d3.2.js"></script>
+<meta charset=utf-8 />
+<title>Billz</title>
+<!--[if IE]>
+  <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+<style>
+  article, aside, figure, footer, header, hgroup,
+  menu, nav, section { display: block; }
+body {
+  margin: 0;
+}
+
+</style>
+</head>
+<body>
+<script src="data.js"></script>
+<script type="text/javascript+protovis">
+// transform bubbleData
+data = bubbleData.rows.map(function(elem){ out = {}; out[elem.key] = elem.value; return out; });
+
+subjects = {};
+subjectData.rows.forEach(function(elem){ subjects[elem.key] = elem.value; });
+
+
+/* Produce a flat hierarchy of the Flare classes. */
+var classes = pv.nodes(pv.flatten(data).leaf(Number).array());
+classes.slice(1).forEach(function(d, idx) {
+  //console.log(d.nodeValue);
+  //d.nodeName = "flare." + d.nodeValue.keys.join(".");
+  d.nodeName = subjects[d.nodeValue.keys[1]];
+  //var i = d.nodeName.lastIndexOf(".");
+  //d.className = d.nodeName.substring(i + 1);
+  //d.packageName = d.nodeName.substring(0, i);
+  //d.nodeValue = d.nodeValue.value;
+  d.fillStyleClass = d.nodeName.split(/\W/)[0];
+  d.nodeValue = d.nodeValue.value;
+});
+
+/* For pretty number formatting. */
+var format = pv.Format.number();
+
+var vis = new pv.Panel()
+    .width(1000)
+    .height(1000);
+
+vis.add(pv.Layout.Pack)
+    .top(-50)
+    .bottom(-50)
+    .nodes(classes)
+    .size(function(d) d.nodeValue)
+    .spacing(0)
+    .order(null)
+  .node.add(pv.Dot)
+    .fillStyle(pv.Colors.category20().by(function(d) d.fillStyleClass))
+    .strokeStyle(function() this.fillStyle().darker())
+    .visible(function(d) d.parentNode)
+    .title(function(d) d.nodeName + ": " + format(d.nodeValue))
+  .anchor("center").add(pv.Label)
+    .text(function(d) d.nodeName.substring(0, 1 + (d.nodeValue >> 1)));
+    //.text(function(d) d.className.substring(0, Math.sqrt(d.nodeValue) >> 4));
+
+vis.render();
+
+
+</script>
+</body>
+</html>
