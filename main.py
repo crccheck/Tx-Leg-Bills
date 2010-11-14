@@ -2,6 +2,8 @@ import re
 import urllib2
 from lxml import etree
 import couchdb
+import shelve
+import logging
 
 DATABASE = {
     'name': 'bills',
@@ -12,7 +14,7 @@ DATABASE = {
 def grab(url):
     '''shortcut to pull a url as a element tree object ready for transversal'''
     f = urllib2.urlopen(url)
-    #print "Pulling %s Bytes from %s" % (f.headers.dict['content-length'], url)
+    debug("Pulling %s Bytes from %s" % (f.headers.dict['content-length'], url))
     if f.geturl() != url:
         raise Exception("Bad URL, got %s but expected %s" % (f.geturl(), url))
     return etree.parse(f, etree.HTMLParser())
@@ -63,27 +65,51 @@ def get_today_bills_list():
     tree = grab('http://www.capitol.state.tx.us/Reports/Report.aspx?&ID=todayfiled')
     return tree.xpath("//table//a/@href")
 
+
+skip = 1410
 def get_session_bills(session = None):
     if session is None:
         session = get_current_session()
     db = couch_start('bills_%s' % session)
-
+    d = shelve.open('bills.log')
     bill_list = get_house_bills_list(session)
+    d['bills'] = bill_list
+    
     bill_list.extend(get_senate_bills_list(session))
+    d['bills'] = bill_list
     n = len(bill_list)
     if n:
         for i, url in enumerate(bill_list, start=1):
-            bill, id, _ = get_bill(url)
+            if i < skip:
+                continue
+            try:
+                bill, id, _ = get_bill(url)
+            except urllib2.URLError as e:
+                err("%s URL Error %s" % (url, e))
+                continue
             doc = db.get(id)
             if doc:
-                print "%d / %d Update %s" % (i, n, id)
+                log("%d / %d Update %s" % (i, n, id))
                 doc.update(bill)
                 db[doc.id] = doc
             else:
-                print "%d / %d Save %s" % (i, n, id)
+                log("%d / %d Save %s" % (i, n, id))
                 db[id] = bill
     else:
-        print "No Bills To Pull"
+        log("No Bills To Pull")
+
+def get_bill_and_save(session, bill):
+    db = couch_start('bills_%s' % session)
+    bill, id, _ = get_bill(session, bill)
+    doc = db.get(id)
+    if doc:
+        log("Update %s" % (id))
+        doc.update(bill)
+        db[doc.id] = doc
+    else:
+        log("Save %s" % (id))
+        db[id] = bill
+
 
 def get_today_bills():
     db = couch_start()
@@ -94,19 +120,19 @@ def get_today_bills():
             bill, id, _ = get_bill(url)
             doc = db.get(id)
             if doc:
-                print "%d / %d Update %s" % (i, n, id)
+                log("%d / %d Update %s" % (i, n, id))
                 doc.update(bill)
                 db[doc.id] = doc
             else:
-                print "%d / %d Save %s" % (i, n, id)
+                log("%d / %d Save %s" % (i, n, id))
                 db[id] = bill
     else:
-        print "No Bills To Pull"
+        log("No Bills To Pull")
 
 def couch_start(dbname = None):
     if dbname is None:
         dbname = DATABASE['name']
-    print 'dbname is ',dbname
+    debug('dbname is %s' % dbname)
     dbname = dbname.lower()
     server = couchdb.client.Server()
     try:
@@ -115,5 +141,16 @@ def couch_start(dbname = None):
         db = server[dbname]
     return db
 
+logging.basicConfig(level=logging.INFO)
+def debug(s):
+    logging.debug(s)
+def log(s):
+    logging.info(s)
+def warn(s):
+    logging.warn(s)
+def err(s):
+    logging.error(s)
+def derp(s):
+    logging.critical(s)
 if __name__ == "__main__":
     pass

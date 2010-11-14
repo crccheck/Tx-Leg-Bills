@@ -52,7 +52,7 @@ function load_data(){
         function(jsonData){
             log('Grabbed Bill Subject Stats');
             data = jsonData.rows
-                //.filter(function(elem){ return elem.value > 1; })
+                .filter(function(elem){ return elem.value > 1; })
                 .map(function(elem){ out = {}; out[elem.key] = elem.value; return out; });
             makeChart();
         });
@@ -83,7 +83,7 @@ function load_subject_captions(key){
 }
 function makeChart(){
     /* Produce a flat hierarchy of the Flare classes. */
-    var classes = pv.nodes(pv.flatten(data).leaf(Number).array());
+    classes = pv.nodes(pv.flatten(data).leaf(Number).array());
     classes.slice(1).forEach(function(d, idx) {
       d.nodeName = subjects[d.nodeValue.keys[1]];
       d.subjectId = d.nodeValue.keys[1];
@@ -112,12 +112,13 @@ function makeChart(){
         .fillStyle(colors.by(function(d) d.fillStyleClass))
         .strokeStyle(function() this.index == vis.i() ? this.fillStyle().brighter() : this.fillStyle().darker())
         .visible(function(d) d.parentNode)
-        .title(function(d) d.nodeName + ": " + format(d.nodeValue))
+        .title(function(d) d.nodeName + ": " + format(d.nodeValue) + ' ' + d.radius )
         .event("click", function(d) { $('h1').text(d.nodeName); load_subject_captions(d.subjectId); })
         .event("mouseover", function(d) { vis.i(this.index); this.fillStyle().darker(); this.render(); })
         .anchor("center").add(pv.Label)
-        .text(function(d) d.nodeName.substring(0, 1 + (d.nodeValue >> 1)));
-        //.text(function(d) d.className.substring(0, Math.sqrt(d.nodeValue) >> 4));
+        //.text(function(d) d.nodeName.substring(0, 1 + (d.nodeValue >> 1)));
+        .text(function(d) d.nodeName.substring(0, Math.floor(d.radius/5)));
+        //.text(function(d) Math.floor(d.radius/10));
 
     vis.render();
 }
