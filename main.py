@@ -19,6 +19,13 @@ def grab(url):
         raise Exception("Bad URL, got %s but expected %s" % (f.geturl(), url))
     return etree.parse(f, etree.HTMLParser())
 
+def text(node):
+    output = node.text or ''
+    children = node.getchildren()
+    if len(children):
+        output += "".join([text(child) for child in node.getchildren()])
+    return output
+
 def get_text_by_id(tree,id):
     '''shortcut that works similar to javascript's getElementById(id).innerHTML
     TODO figure out how to make this a method so we can use self instead of tree '''
@@ -48,7 +55,7 @@ def get_bill(session, bill=None):
     bill['action'] = [dict(
                     [(i, j) for (i,j) in
                     zip(['stage', 'description', 'comment', 'date', 'time', 'journal'],
-                    [td.strip() for td in tr.xpath('./td/text()')]
+                    [text(td).strip() for td in tr.xpath('./td')]
                     ) if j]) for tr in tree.xpath('//table[@rules="rows"]//tr[@id]')]
     id = re.sub(r'[^-0-9a-zA-Z]', '', "%s-%s" % (bill['session'], bill['name']))
     return bill, id, tree
