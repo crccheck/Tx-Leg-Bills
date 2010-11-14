@@ -63,9 +63,11 @@ def get_today_bills_list():
     tree = grab('http://www.capitol.state.tx.us/Reports/Report.aspx?&ID=todayfiled')
     return tree.xpath("//table//a/@href")
 
-def get_current_session_bills():
-    db = couch_start()
-    session = get_current_session()
+def get_session_bills(session = None):
+    if session is None:
+        session = get_current_session()
+    db = couch_start('bills_%s' % session)
+
     bill_list = get_house_bills_list(session)
     bill_list.extend(get_senate_bills_list(session))
     n = len(bill_list)
@@ -101,12 +103,16 @@ def get_today_bills():
     else:
         print "No Bills To Pull"
 
-def couch_start():
+def couch_start(dbname = None):
+    if dbname is None:
+        dbname = DATABASE['name']
+    print 'dbname is ',dbname
+    dbname = dbname.lower()
     server = couchdb.client.Server()
     try:
-        db = server.create(DATABASE['name'])
+        db = server.create(dbname)
     except couchdb.PreconditionFailed as e:
-        db = server[DATABASE['name']]
+        db = server[dbname]
     return db
 
 if __name__ == "__main__":
