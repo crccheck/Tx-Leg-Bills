@@ -73,17 +73,16 @@ def get_today_bills_list():
     return tree.xpath("//table//a/@href")
 
 
-skip = 1410
+skip = 0
 def get_session_bills(session = None):
     if session is None:
         session = get_current_session()
     db = couch_start('bills_%s' % session)
     d = shelve.open('bills.log')
     bill_list = get_house_bills_list(session)
-    d['bills'] = bill_list
-    
+    #d['bills'] = bill_list
     bill_list.extend(get_senate_bills_list(session))
-    d['bills'] = bill_list
+    #d['bills'] = bill_list
     n = len(bill_list)
     if n:
         for i, url in enumerate(bill_list, start=1):
