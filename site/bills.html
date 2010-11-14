@@ -73,7 +73,10 @@ function display_subject_captions(text){
     });
 }
 function load_subject_captions(key){
-    if (bills[key]) display_subject_captions(bills[key]);
+    if (bills[key]) {
+        display_subject_captions(bills[key]);
+        return;
+    }
     $.getJSON(db_url + "viz/_view/subject-captions",
         {key: '"' + key + '"'},
         function(data){
