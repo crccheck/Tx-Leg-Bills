@@ -42,10 +42,13 @@ window.log=function(){log.history=log.history||[];log.history.push(arguments);if
 var subjects = {},
     bills = {},
     subjectsCircles = {},
+    session = document.location.hash.match(/\d+[0-9r]/),
+    db = 'bills_' + session,
+    db_url = '/couch/' + db + '/_design/',
     data, vis;
 
 function load_data(){
-    $.getJSON("/couch/bills/_design/viz/_view/subject?group_level=1",
+    $.getJSON(db_url + "viz/_view/subject?group_level=1",
         function(jsonData){
             log('Grabbed Bill Subject Stats');
             data = jsonData.rows
@@ -55,7 +58,7 @@ function load_data(){
         });
 }
 function load_subjects(){
-    $.getJSON("/couch/bills/_design/all/_view/subjects?group=true",
+    $.getJSON(db_url + "all/_view/subjects?group=true",
         function(data){
             log('Grabbed Bill Subject Lookup Table');
             data.rows.forEach(function(elem){ subjects[elem.key] = elem.value; });
@@ -71,7 +74,7 @@ function display_subject_captions(text){
 }
 function load_subject_captions(key){
     if (bills[key]) display_subject_captions(bills[key]);
-    $.getJSON("/couch/bills/_design/viz/_view/subject-captions",
+    $.getJSON(db_url + "viz/_view/subject-captions",
         {key: '"' + key + '"'},
         function(data){
             bills[key] = data.rows.map(function(elem){ var b = elem.value; b['bill']=elem.id.split('-')[1]; return b; });
