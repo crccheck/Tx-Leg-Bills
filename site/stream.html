@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+<script src="protovis/protovis-d3.2.js"></script>
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.8.2r1/build/reset/reset-min.css">
+<meta charset=utf-8 />
+<title>Billz</title>
+<!--[if IE]>
+  <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+<style>
+article, aside, figure, footer, header, hgroup,
+menu, nav, section { display: block; }
+body {
+  margin: 0;
+  font-family: helvetica, arial, sans-serif;
+  font-size: 10px;
+}
+#top { height: 1.2em; border-bottom: 1px solid #ddd; }
+path:hover { fill: #FFFF00; }
+</style>
+</head>
+<body>
+<div id="top">
+
+</div>
+<script>
+window.log=function(){log.history=log.history||[];log.history.push(arguments);if(this.console){console.log(Array.prototype.slice.call(arguments))}};
+
+var session = document.location.hash.match(/\d+[0-9r]/),
+    db = 'bills_' + session,
+    db_url = '/couch/' + db + '/_design/',
+    data = [];
+var dates = {}, actions = {}, actions_r = [], m = 0, n = 0;
+
+(function load_data(){
+    $.getJSON(db_url + "viz/_view/action_stream?group=true",
+        function(jsonData){
+            log('Grabbed Actions by Date');
+            // pass 1: build lookup table
+            jsonData.rows
+                .forEach(function(elem){
+                    var key = elem.key;
+                    if (dates[key[0]] === undefined) { dates[key[0]] = n++; }
+                    if (actions[key[1]] === undefined) { actions[key[1]] = m++; actions_r.push(key[1]); }
+                });
+            // pass 2: zero fill array
+            for (var i = 0; i < m; ++i){
+                var arr = new Array(n);
+                for (var j = 0; j < n; ++j) arr[j] = 0;
+                data.push(arr);
+            }
+            // pass 2: populate data table
+            jsonData.rows.forEach(function(elem){
+                var key = elem.key;
+                data[actions[key[1]]][dates[key[0]]] = elem.value;
+                //data[dates[key[0]]][actions[key[1]]] = elem.value;
+            });
+            makeChart();
+        });
+})();
+var vis;
+function makeChart(){
+    var w = 800,
+        h = 800,
+        x = pv.Scale.linear(0, m - 1).range(0, w),
+        y = pv.Scale.linear(0, 30 * n).range(0, h/2);
+
+    vis = new pv.Panel()
+        .width(w)
+        .height(h);
+
+    vis.add(pv.Layout.Stack)
+        .layers(data)
+        .order("inside-out")
+        .offset("wiggle")
+        .x(x.by(pv.index))
+        .y(y)
+      .layer.add(pv.Area)
+        .fillStyle(pv.ramp("#aad", "#556").by(Math.random))
+        .strokeStyle(function() this.fillStyle().alpha(.5))
+        .event("click", function(d, e) { $('#top').text(actions_r[this,data.indexOf(e)]); })
+
+    vis.render();
+}
+
+
+
+</script>
+</body>
+</html>
