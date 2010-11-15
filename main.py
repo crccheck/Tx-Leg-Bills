@@ -91,15 +91,17 @@ def get_session_bills(session = None):
             try:
                 bill, id, _ = get_bill(url)
             except urllib2.URLError as e:
-                err("%s URL Error %s" % (url, e))
+                err("!!%s URL Error %s" % (url, e))
                 continue
             doc = db.get(id)
+            if not (i % 1000):
+                log("--MARK-- %d / %d" % (i / n))
             if doc:
-                log("%d / %d Update %s" % (i, n, id))
+                debug("%d / %d Update %s" % (i, n, id))
                 doc.update(bill)
                 db[doc.id] = doc
             else:
-                log("%d / %d Save %s" % (i, n, id))
+                debug("%d / %d Save %s" % (i, n, id))
                 db[id] = bill
     else:
         log("No Bills To Pull")
