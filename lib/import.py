@@ -1,16 +1,14 @@
+import logging
 import re
 import urllib2
 from lxml import etree
+import simplejson as json
 import couchdb
-import shelve
-import logging
 
-# TODO pull database info from .couchapprc
-DATABASE = {
-    'name': 'bills',
-    'host': 'localhost',
-    'port': '5984'
-}
+f = open('../.couchapprc')
+data = json.load(f)
+f.close()
+DATABASE = re.match(r'http://(?P<host>[^:]+):(?P<port>\d+)/(?P<name>.+)', data['env']['default']['db']).groupdict()
 
 def grab(url):
     '''shortcut to pull a url as a element tree object ready for transversal'''
